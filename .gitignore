@@ -1,0 +1,50 @@
+# Terraform/OpenTofu
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Generated files
+kubeconfig
+ssh_key*
+
+# Docker/Certificates
+certs/                   # TLS certificates (generated)
+docker/data/
+docker/.env
+docker/tftp/
+docker/dhcp/
+
+# IDE/Editor
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.backup
+*.bak
+*.tar.gz

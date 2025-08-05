@@ -1,0 +1,56 @@
+# Example Terraform configuration for single-node Typhoon homelab cluster
+# Copy this file to terraform.tfvars and customize for your environment
+
+# Cluster Configuration
+cluster_name = "homelab"
+
+# Matchbox Configuration (running locally)
+matchbox_http_endpoint = "http://192.168.50.100:8080"  # Your machine's IP (update if different)
+matchbox_client_cert   = "../certs/client.crt"         # Generated locally
+matchbox_client_key    = "../certs/client.key"         # Generated locally
+matchbox_ca_cert       = "../certs/ca.crt"             # Generated locally
+
+# Fedora CoreOS Configuration
+os_stream  = "stable"
+os_version = "42.20250705.3.0"
+
+# Kubernetes Configuration
+k8s_domain_name    = "node1.home"  # Single node serves as API server - match router domain
+ssh_authorized_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample_SSH_Key user@hostname"
+
+# Generate SSH key pair (set to true if you don't have existing keys)
+generate_ssh_key = false
+
+# Single Controller Node (will be made schedulable for single-node cluster)
+controllers = [
+  {
+    name   = "node1"
+    mac    = "C4:65:16:B9:35:DC"  # MAC address of your target machine
+    domain = "node1.home"         # Match your router domain
+  }
+]
+
+# No Worker Nodes for single-node setup (empty list)
+workers = []
+
+# Network Configuration
+networking   = "cilium"          # Choose: "cilium" (eBPF-based, advanced features) or "flannel" (simple, lightweight)
+pod_cidr     = "10.20.0.0/14"   # Pod network CIDR
+service_cidr = "10.3.0.0/16"    # Service network CIDR
+
+# Hardware Configuration
+install_disk   = "sda"           # Target disk for OS installation (adjust if needed)
+cached_install = false          # Download images fresh (true if using Matchbox cache)
+kernel_args    = []             # Additional kernel arguments
+
+# Single-node specific: No node labels or taints needed
+worker_node_labels = {}
+worker_node_taints = {}
+
+# Butane snippets for additional configuration (optional)
+snippets = {
+  # Example: Custom configuration for the single node
+  # "node1" = [
+  #   "path/to/single-node-config.yaml"
+  # ]
+}
