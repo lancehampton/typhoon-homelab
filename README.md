@@ -17,7 +17,7 @@ This project implements a single-node bare-metal Kubernetes cluster using:
 
 ```mermaid
 graph TB
-    subgraph "Development Machine (macOS)"
+    subgraph "Development Machine (macOS/Linux)"
         DEV["`**Development Tools**
         • OpenTofu/Terraform
         • kubectl
@@ -25,38 +25,41 @@ graph TB
         • Git/VSCode`"]
     end
 
-    subgraph "Desktop PC (Linux)"
+    subgraph "Desktop PC (Docker Host)"
         MATCHBOX["`**Matchbox Container**
-        • PXE boot service
+        • HTTP API (port 8080)
+        • gRPC API (port 8081)
         • Profile management
         • Asset serving`"]
-        TFTP["`**TFTP Container**
-        • iPXE binaries
-        • Boot configuration`"]
+        DNSMASQ["`**dnsmasq Container**
+        • Proxy DHCP server
+        • TFTP server (port 69/udp)
+        • Built-in iPXE files
+        • Host networking mode`"]
     end
 
     subgraph "Target Hardware"
         NODE["`**Single Node**
-        • Fedora CoreOS
+        • Fedora CoreOS 42.x
         • Kubernetes control plane
         • Schedulable for workloads
-        • etcd + kubelet + kube-proxy`"]
+        • IP: 192.168.50.200`"]
     end
 
     subgraph "Home Network"
-        ROUTER["`**Router/DHCP**
-        • PXE boot forwarding
-        • DNS resolution
-        • Network connectivity`"]
+        ROUTER["`**ASUS ZenWiFi Router**
+        • DHCP server (.home domain)
+        • Network: 192.168.50.x
+        • No PXE config needed`"]
     end
 
     DEV -.->|SSH/kubectl| NODE
-    DEV -.->|API calls| MATCHBOX
-    MATCHBOX -->|HTTP/gRPC| NODE
-    TFTP -->|PXE boot| NODE
-    ROUTER -->|DHCP/PXE| NODE
+    DEV -.->|Matchbox HTTP API| MATCHBOX
+    MATCHBOX -->|Ignition configs| NODE
+    DNSMASQ -->|Proxy DHCP + PXE boot| NODE
+    ROUTER -->|Primary DHCP| NODE
     ROUTER -.->|Network| MATCHBOX
-    ROUTER -.->|Network| TFTP
+    ROUTER -.->|Network| DNSMASQ
 ```
 
 ## Key Features
