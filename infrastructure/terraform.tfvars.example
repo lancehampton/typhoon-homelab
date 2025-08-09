@@ -21,6 +21,10 @@ ssh_authorized_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample_SSH_Key user@
 # Generate SSH key pair (set to true if you don't have existing keys)
 generate_ssh_key = false
 
+# Optional: Customize SSH key and kubeconfig file names (uncomment to override defaults)
+# ssh_key_name        = "typhoon-homelab-key"    # Default: generates "~/.ssh/typhoon-homelab-key" and "~/.ssh/typhoon-homelab-key.pub"
+# kubeconfig_filename = "config-homelab"         # Default: "~/.kube/config-homelab"
+
 # Single Controller Node (will be made schedulable for single-node cluster)
 controllers = [
   {

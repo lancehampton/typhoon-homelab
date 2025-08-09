@@ -37,7 +37,7 @@ module "homelab" {
 # Save kubeconfig to local file
 resource "local_file" "kubeconfig" {
   content         = module.homelab.kubeconfig-admin
-  filename        = "${path.root}/kubeconfig"
+  filename        = pathexpand("~/.kube/${var.kubeconfig_filename}")
   file_permission = "0600"
 }
 
@@ -50,13 +50,13 @@ resource "tls_private_key" "ssh" {
 resource "local_file" "ssh_private_key" {
   count           = var.generate_ssh_key ? 1 : 0
   content         = tls_private_key.ssh[0].private_key_openssh
-  filename        = "${path.root}/ssh_key"
+  filename        = pathexpand("~/.ssh/${var.ssh_key_name}")
   file_permission = "0600"
 }
 
 resource "local_file" "ssh_public_key" {
   count           = var.generate_ssh_key ? 1 : 0
   content         = tls_private_key.ssh[0].public_key_openssh
-  filename        = "${path.root}/ssh_key.pub"
+  filename        = pathexpand("~/.ssh/${var.ssh_key_name}.pub")
   file_permission = "0644"
 }

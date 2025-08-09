@@ -58,6 +58,8 @@ The [poseidon/dnsmasq](https://quay.io/repository/poseidon/dnsmasq) container is
 - **Combined Services**: DHCP proxy + TFTP server in one container
 - **Production Ready**: Used in official Matchbox documentation and examples
 
+> **⚠️ Technical Note**: The poseidon/dnsmasq container uses standard iPXE binaries from boot.ipxe.org (v1.21.1+). While Typhoon documentation warns that "iPXE's pre-built firmware binaries do not enable HTTPS support," our testing shows the container's iPXE files are identical to current standard builds, suggesting modern iPXE may have HTTPS enabled by default. The container works reliably with Fedora CoreOS in practice. Never mount a volume over `/var/lib/tftpboot` as this will mask the container's iPXE files with empty directories.
+
 ### How It Works
 
 Instead of requiring separate DHCP proxy and TFTP containers, dnsmasq:

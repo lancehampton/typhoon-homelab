@@ -63,6 +63,18 @@ variable "generate_ssh_key" {
   default     = false
 }
 
+variable "ssh_key_name" {
+  description = "Base name for generated SSH key files (stored in ~/.ssh/)"
+  type        = string
+  default     = "typhoon-homelab-key"
+}
+
+variable "kubeconfig_filename" {
+  description = "Filename for the generated kubeconfig file (stored in ~/.kube/)"
+  type        = string
+  default     = "config-homelab"
+}
+
 # Machine Configuration
 variable "controllers" {
   description = "List of controller machine detail objects (name, mac, domain)"

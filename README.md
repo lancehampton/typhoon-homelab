@@ -152,9 +152,13 @@ networking = "flannel"
 ├── README.md                    # This file
 ├── .gitignore                   # Git ignore patterns
 ├── certs/                       # TLS certificates (generated)
+├── data/                        # Persistent data for services (generated)
+│   ├── matchbox/                # Matchbox profiles, groups, machines
+│   └── tftpboot/                # TFTP boot files (iPXE, kernels)
 ├── docker/                      # Docker Compose for Matchbox/dnsmasq
 │   ├── docker-compose.yml       # Service definitions
 │   ├── generate-certs.sh        # Certificate generation
+│   ├── README.md                # Docker services documentation
 │   └── .env.example             # Environment configuration
 └── infrastructure/              # Terraform/OpenTofu configs
     ├── main.tf                  # Main cluster configuration

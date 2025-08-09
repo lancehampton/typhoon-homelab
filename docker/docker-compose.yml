@@ -33,8 +33,6 @@ services:
     container_name: dnsmasq
     restart: unless-stopped
     network_mode: host
-    volumes:
-      - ../data/tftpboot:/var/lib/tftpboot:Z
     command: >
       -d -q
       --port=0
