@@ -62,6 +62,59 @@ graph TB
     ROUTER -.->|Network| DNSMASQ
 ```
 
+## Deployment Workflow
+
+```mermaid
+flowchart TD
+    A["`**Stage 1: Bootstrap**
+    OpenTofu generates 31 TLS certs
+    Creates Matchbox profiles`"] -->
+    
+    B["`**Stage 2: PXE Boot**
+    Target node boots via PXE
+    dnsmasq → iPXE → Matchbox`"] -->
+    
+    C["`**Stage 3: OS Install**
+    Fedora CoreOS installs to NVMe
+    Ignition applies configuration`"] -->
+    
+    D["`**Stage 4: Kubernetes Init**
+    kubelet starts control plane
+    Node becomes schedulable`"] -->
+    
+    E["`**Stage 5: Access**
+    SSH: core@node1.home
+    kubectl: ~/.kube/config-homelab`"]
+
+    subgraph "Detailed PXE Flow"
+        B1[UEFI PXE Request] -->
+        B2[dnsmasq TFTP Response] -->
+        B3[iPXE Downloads Boot Script] -->
+        B4[Matchbox Serves Ignition Config] -->
+        B5[Fedora CoreOS Live Boot]
+    end
+
+    B -.-> B1
+
+    subgraph "Certificate Flow"
+        A1[Bootstrap Certs Generated] -->
+        A2[Deployed via Ignition] -->
+        A3[kubelet Bootstraps] -->
+        A4[Cluster Certificates Active]
+    end
+
+    A -.-> A1
+    C -.-> A2
+
+    style A fill:#d4edda
+    style E fill:#cce5ff
+    style B1 fill:#fff3cd
+    style B2 fill:#fff3cd
+    style B3 fill:#fff3cd
+    style B4 fill:#fff3cd
+    style B5 fill:#fff3cd
+```
+
 ## Key Features
 
 - **Single-Node Design**: Controller node is schedulable for workloads, perfect for homelab environments
