@@ -17,8 +17,9 @@ terraform.rc
 kubeconfig
 ssh_key*
 
-# Docker/Certificates
-certs/                   # TLS certificates (generated)
+# Docker/Certificates  
+certs/
+certs/*
 docker/data/
 docker/.env
 docker/tftp/

@@ -1,32 +1,25 @@
-version: '3.8'
-
 services:
   matchbox:
-    image: quay.io/poseidon/matchbox:latest
+    image: quay.io/poseidon/matchbox:v0.11.0-200-g01838f31
     container_name: matchbox
     restart: unless-stopped
     ports:
       - "8080:8080"  # HTTP (read-only)
       - "8081:8081"  # gRPC API
     volumes:
-      - ./data/matchbox:/var/lib/matchbox:Z
+      - ../data/matchbox:/var/lib/matchbox:Z
       - ../certs:/etc/matchbox:ro,Z
     command: >
       -address=0.0.0.0:8080
       -rpc-address=0.0.0.0:8081
-      -http-address=0.0.0.0:8080
       -data-path=/var/lib/matchbox
       -assets-path=/var/lib/matchbox/assets
       -cert-file=/etc/matchbox/server.crt
       -key-file=/etc/matchbox/server.key
       -ca-file=/etc/matchbox/ca.crt
       -log-level=info
-    environment:
-      - MATCHBOX_ADDRESS=0.0.0.0:8081
-      - MATCHBOX_RPC_ADDRESS=0.0.0.0:8081
-      - MATCHBOX_HTTP_ADDRESS=0.0.0.0:8080
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,14 +27,17 @@ services:
     networks:
       - homelab
 
-  # Official Poseidon dnsmasq - provides proxy DHCP + TFTP for PXE boot
+  # Official dnsmasq - provides proxy DHCP + TFTP for PXE boot
   dnsmasq:
-    image: quay.io/poseidon/dnsmasq:latest
+    image: quay.io/poseidon/dnsmasq:v0.5.0-43-g545c220
     container_name: dnsmasq
     restart: unless-stopped
     network_mode: host
+    volumes:
+      - ../data/tftpboot:/var/lib/tftpboot:Z
     command: >
       -d -q
+      --port=0
       --dhcp-range=${DHCP_RANGE:-192.168.50.1,proxy,255.255.255.0}
       --enable-tftp
       --tftp-root=/var/lib/tftpboot

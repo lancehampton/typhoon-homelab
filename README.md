@@ -47,7 +47,7 @@ graph TB
     end
 
     subgraph "Home Network"
-        ROUTER["`**ASUS ZenWiFi Router**
+        ROUTER["`**Router/DHCP Server**
         • DHCP server (.home domain)
         • Network: 192.168.50.x
         • No PXE config needed`"]
@@ -108,13 +108,13 @@ networking = "flannel"
 
 ## Quick Start
 
-1. **Deploy Matchbox Service on Desktop PC**
+1. **Deploy Matchbox and dnsmasq Services on Desktop PC**
    ```bash
    cd docker/
    cp .env.example .env
    # Edit .env with your network settings
    ./generate-certs.sh
-   docker-compose up -d
+   docker compose --profile dnsmasq up -d
    ```
 
 2. **Configure Infrastructure on Dev Machine**
