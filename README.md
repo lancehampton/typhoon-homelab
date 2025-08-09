@@ -67,7 +67,7 @@ graph TB
 ```mermaid
 flowchart TD
     A["`**Stage 1: Bootstrap**
-    OpenTofu generates 31 TLS certs
+    OpenTofu generates TLS certs
     Creates Matchbox profiles`"] -->
     
     B["`**Stage 2: PXE Boot**
@@ -83,8 +83,8 @@ flowchart TD
     Node becomes schedulable`"] -->
     
     E["`**Stage 5: Access**
-    SSH: core@node1.home
-    kubectl: ~/.kube/config-homelab`"]
+    SSH: core at node1.home
+    kubectl: config-homelab`"]
 
     subgraph "Detailed PXE Flow"
         B1[UEFI PXE Request] -->
@@ -106,13 +106,13 @@ flowchart TD
     A -.-> A1
     C -.-> A2
 
-    style A fill:#d4edda
-    style E fill:#cce5ff
-    style B1 fill:#fff3cd
-    style B2 fill:#fff3cd
-    style B3 fill:#fff3cd
-    style B4 fill:#fff3cd
-    style B5 fill:#fff3cd
+    style A fill:#c8e6c9,stroke:#2e7d32,color:#000
+    style E fill:#bbdefb,stroke:#1565c0,color:#000
+    style B1 fill:#fff9c4,stroke:#f57f17,color:#000
+    style B2 fill:#fff9c4,stroke:#f57f17,color:#000
+    style B3 fill:#fff9c4,stroke:#f57f17,color:#000
+    style B4 fill:#fff9c4,stroke:#f57f17,color:#000
+    style B5 fill:#fff9c4,stroke:#f57f17,color:#000
 ```
 
 ## Key Features
@@ -193,7 +193,7 @@ networking = "flannel"
 
 5. **Wait for Bootstrap and Verify Cluster**
    ```bash
-   export KUBECONFIG=infrastructure/kubeconfig
+   export KUBECONFIG=~/.kube/config-homelab
    kubectl get nodes
    kubectl get pods -A
    # Take time to manually inspect and understand your single-node cluster

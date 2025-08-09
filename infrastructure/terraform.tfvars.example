@@ -5,7 +5,7 @@
 cluster_name = "homelab"
 
 # Matchbox Configuration (running locally)
-matchbox_http_endpoint = "http://192.168.50.100:8080"  # Your machine's IP (update if different)
+matchbox_http_endpoint = "192.168.50.100:8081"          # Your machine's gRPC endpoint (port 8081)
 matchbox_client_cert   = "../certs/client.crt"         # Generated locally
 matchbox_client_key    = "../certs/client.key"         # Generated locally
 matchbox_ca_cert       = "../certs/ca.crt"             # Generated locally
@@ -29,7 +29,7 @@ generate_ssh_key = false
 controllers = [
   {
     name   = "node1"
-    mac    = "C4:65:16:B9:35:DC"  # MAC address of your target machine
+    mac    = "c4:65:16:b9:35:dc"  # MAC address of your target machine (lowercase)
     domain = "node1.home"         # Match your router domain
   }
 ]
@@ -38,12 +38,12 @@ controllers = [
 workers = []
 
 # Network Configuration
-networking   = "cilium"          # Choose: "cilium" (eBPF-based, advanced features) or "flannel" (simple, lightweight)
+networking   = "cilium"         # Choose: "cilium" (eBPF-based, advanced features) or "flannel" (simple, lightweight)
 pod_cidr     = "10.20.0.0/14"   # Pod network CIDR
 service_cidr = "10.3.0.0/16"    # Service network CIDR
 
 # Hardware Configuration
-install_disk   = "sda"           # Target disk for OS installation (adjust if needed)
+install_disk   = "nvme0n1"      # Target disk for OS installation (HP EliteDesk 800 G4 NVMe)
 cached_install = false          # Download images fresh (true if using Matchbox cache)
 kernel_args    = []             # Additional kernel arguments
 
