@@ -60,6 +60,6 @@ networks:
       config:
         - subnet: ${DOCKER_SUBNET:-172.20.0.0/16}
 
-volumes:
-  matchbox-data:
-    driver: local
+# volumes:
+#   matchbox-data:
+#     driver: local

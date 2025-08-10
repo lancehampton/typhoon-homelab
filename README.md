@@ -6,12 +6,12 @@ A single-node Kubernetes homelab built with [Typhoon](https://typhoon.psdn.io/) 
 
 This project implements a single-node bare-metal Kubernetes cluster using:
 
-- **Typhoon** - Minimal, free Kubernetes distribution
-- **Fedora CoreOS** - Container-optimized operating system
-- **Matchbox** - Network boot and machine provisioning service
-- **OpenTofu/Terraform** - Infrastructure as code
-- **Ignition** - Declarative system configuration
-- **Cilium or Flannel** - Container networking (Cilium default for eBPF benefits)
+- [Typhoon](https://typhoon.psdn.io/) - Minimal, free Kubernetes distribution
+- [Fedora CoreOS](https://fedoraproject.org/coreos/) - Container-optimized operating system
+- [Matchbox](https://matchbox.psdn.io/) - Network boot and machine provisioning service
+- [OpenTofu](https://opentofu.org/)/[Terraform](https://developer.hashicorp.com/terraform) - Infrastructure as code
+- [Ignition](https://coreos.github.io/ignition/) - Declarative system configuration
+- [Cilium](https://cilium.io/) or [Flannel](https://github.com/flannel-io/flannel) - Container networking (we use Cilium for reasons stated in [Networking Choice: Cilium vs Flannel](#networking-choice-cilium-vs-flannel))
 
 ## Architecture
 
@@ -117,28 +117,28 @@ flowchart TD
 
 ## Key Features
 
-- **Single-Node Design**: Controller node is schedulable for workloads, perfect for homelab environments
-- **Docker-Based Services**: Matchbox and TFTP run in containers on your desktop PC
-- **Manual Control**: No hidden automation - understand each step before proceeding
-- **Production Patterns**: Uses official Typhoon modules and Fedora CoreOS best practices
-- **Expansion Ready**: Easy path to add worker nodes when needed
+- Single-Node Design: Controller node is schedulable for workloads, perfect for homelab environments
+- Docker-Based Services: Matchbox and TFTP run in containers on your desktop PC
+- Manual Control: No hidden automation - understand each step before proceeding
+- Production Patterns: Uses official Typhoon modules and Fedora CoreOS best practices
+- Expansion Ready: Easy path to add worker nodes when needed
 
 ## Networking Choice: Cilium vs Flannel
 
 Typhoon supports both Cilium and Flannel CNI providers. This project defaults to **Cilium** for several reasons:
 
 ### Cilium (Default)
-- **eBPF-based**: More efficient networking with lower CPU overhead
-- **Network Policies**: Built-in security policies for pod-to-pod communication
-- **Observability**: Better network visibility and monitoring capabilities
-- **Single-node Optimized**: Better resource utilization for constrained environments
-- **Future-proof**: Modern networking stack with ongoing development
+- eBPF-based: More efficient networking with lower CPU overhead
+- Network Policies: Built-in security policies for pod-to-pod communication
+- Observability: Better network visibility and monitoring capabilities
+- Single-node Optimized: Better resource utilization for constrained environments
+- Future-proof: Modern networking stack with ongoing development
 
 ### Flannel (Alternative)
-- **Simplicity**: Easier to understand and troubleshoot
-- **Lightweight**: Minimal resource footprint
-- **Mature**: Well-tested, stable, widely deployed
-- **Learning-friendly**: Simpler concepts for networking beginners
+- Simplicity: Easier to understand and troubleshoot
+- Lightweight: Minimal resource footprint
+- Mature: Well-tested, stable, widely deployed
+- Learning-friendly: Simpler concepts for networking beginners
 
 To use Flannel instead, change the `networking` variable in `terraform.tfvars`:
 ```hcl
@@ -148,16 +148,16 @@ networking = "flannel"
 ## Prerequisites
 
 ### Hardware Requirements
-- **Development Machine**: macOS/Linux with OpenTofu/Terraform, kubectl, SSH
-- **Desktop PC**: Linux machine with Docker for running Matchbox services
-- **Target Node**: Single bare-metal server with 2GB+ RAM, 30GB+ disk, PXE-enabled NIC
-- **Network**: Home router with DHCP and PXE boot capability
+- Development Machine: macOS/Linux with OpenTofu/Terraform, kubectl, SSH
+- Desktop PC: Linux machine with Docker for running Matchbox services
+- Target Node: Single bare-metal server with 2GB+ RAM, 30GB+ disk, PXE-enabled NIC
+- Network: Home router with DHCP and PXE boot capability
 
 ### Software Requirements
-- **Docker** and Docker Compose on desktop PC
-- **OpenTofu** or Terraform v1.0+ on development machine
-- **kubectl** for cluster management
-- **SSH keys** for machine access
+- Docker and Docker Compose on desktop PC
+- OpenTofu or Terraform v1.0+ on development machine
+- kubectl for cluster management
+- SSH keys for machine access
 
 ## Quick Start
 
@@ -177,12 +177,37 @@ networking = "flannel"
    # Edit with your environment details
    ```
 
-3. **Deploy Single-Node Cluster**
+3. **Deploy Single-Node Cluster (Two-Step Process)**
+   
+   **Step 1: Pre-Node Setup** (safe without target node powered on)
    ```bash
+   cd infrastructure
    tofu init
    tofu plan
+   
+   # Apply bootstrap components and Matchbox configurations
+   tofu apply -target="module.homelab.module.bootstrap"
+   tofu apply -target="module.homelab.matchbox_profile.controllers"  
+   tofu apply -target="module.homelab.matchbox_group.controller"
+   ```
+   
+   This creates:
+   - All TLS certificates and Kubernetes PKI
+   - Bootstrap tokens and cluster credentials
+   - Matchbox profiles with Ignition configs
+   - Matchbox groups (MAC address mappings)
+   - PXE boot configurations
+   
+   **Step 2: Complete Deployment** (after target node is PXE booted and running)
+   ```bash
+   # After the node has successfully booted Fedora CoreOS and is SSH accessible
    tofu apply
    ```
+   
+   This creates the remaining resources:
+   - `local_file.kubeconfig` - Your local kubeconfig file
+   - `null_resource.bootstrap` - Cluster bootstrap process
+   - `null_resource.copy-controller-secrets` - Copies secrets to node via SSH
 
 4. **Power On Target Node with PXE Boot**
    ```bash
@@ -207,7 +232,7 @@ networking = "flannel"
 ├── certs/                       # TLS certificates (generated)
 ├── data/                        # Persistent data for services (generated)
 │   ├── matchbox/                # Matchbox profiles, groups, machines
-│   └── tftpboot/                # TFTP boot files (iPXE, kernels)
+│   └── tftpboot/                # TFTP boot files (only if using separate TFTP server)
 ├── docker/                      # Docker Compose for Matchbox/dnsmasq
 │   ├── docker-compose.yml       # Service definitions
 │   ├── generate-certs.sh        # Certificate generation

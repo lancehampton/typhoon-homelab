@@ -1,12 +1,6 @@
 # Docker Compose for Typhoon Supporting Services
 
-This directory contains Docker Compose configurations for running Matchbox and supporting PXE services on your desktop PC.
-
-## Overview
-
-The supporting services run on your desktop PC and provide:
-- **Matchbox** - PXE boot and provisioning service
-- **dnsmasq** - Official Poseidon proxy DHCP + TFTP server (for most home routers)
+This directory contains Docker Compose configurations for running Matchbox and supporting PXE services on your desktop PC. The setup uses two containerized services: **Matchbox** for PXE boot provisioning and **dnsmasq** as the official Poseidon proxy DHCP + TFTP server for home networks.
 
 ## Architecture
 
@@ -46,118 +40,103 @@ graph LR
     ROUTER -.->|Network| DNSMASQ
 ```
 
-## dnsmasq: Official Poseidon Solution
+## dnsmasq: The Official Solution
 
-The [poseidon/dnsmasq](https://quay.io/repository/poseidon/dnsmasq) container is the **official solution** from the Matchbox team for home networks. It combines proxy DHCP and TFTP services in a single, well-tested container.
+The [poseidon/dnsmasq](https://quay.io/repository/poseidon/dnsmasq) container is the **official solution** provided by the Matchbox team for environments without enterprise-grade network infrastructure. It combines proxy DHCP and TFTP services in a single container that works alongside your existing router without conflicts.
 
-### Why Use poseidon/dnsmasq?
+This container includes built-in iPXE files (`undionly.kpxe`, `ipxe.efi`, `grub.efi`) and operates in proxy DHCP mode, meaning it enhances your router's DHCP responses with PXE boot information without interfering with IP address assignment.
 
-- **Official Integration**: Designed specifically for Matchbox by the same team
-- **Built-in iPXE Files**: Includes `undionly.kpxe`, `ipxe.efi`, and `grub.efi` automatically
-- **Proxy DHCP Mode**: Works alongside your existing router DHCP without conflicts
-- **Combined Services**: DHCP proxy + TFTP server in one container
-- **Production Ready**: Used in official Matchbox documentation and examples
+**Key Benefits:**
+- Zero router configuration - works with consumer routers (ASUS, Netgear, Linksys) that lack PXE boot support
+- Production-tested - used in official Matchbox documentation and real deployments  
+- Built-in boot files - no need to manage iPXE binaries separately
+- Proxy DHCP design - coexists peacefully with your existing DHCP server
 
-> **⚠️ Technical Note**: The poseidon/dnsmasq container uses standard iPXE binaries from boot.ipxe.org (v1.21.1+). While Typhoon documentation warns that "iPXE's pre-built firmware binaries do not enable HTTPS support," our testing shows the container's iPXE files are identical to current standard builds, suggesting modern iPXE may have HTTPS enabled by default. The container works reliably with Fedora CoreOS in practice. Never mount a volume over `/var/lib/tftpboot` as this will mask the container's iPXE files with empty directories.
-
-### How It Works
-
-Instead of requiring separate DHCP proxy and TFTP containers, dnsmasq:
-1. **Listens for DHCP requests** from PXE clients
-2. **Provides proxy DHCP responses** with PXE boot options (without conflicting with your router)
-3. **Serves iPXE files** via built-in TFTP server
-4. **Chainloads to Matchbox** for Ignition configuration delivery
-
-### Router Compatibility
-
-| Router Type | dnsmasq Required | Configuration Needed |
-|-------------|------------------|---------------------|
-| **Most Home Routers** (ASUS, Netgear, Linksys) | ✅ **Yes** | None - works out of the box |
-| **Enterprise/Advanced** (OpenWrt, pfSense) | ❌ Optional | Manual DHCP options 66 & 67 |
+> [!WARNING]
+> Never mount a volume over `/var/lib/tftpboot` as this masks the container's built-in iPXE files with empty directories, breaking PXE boot.
 
 ## Quick Start
 
-1. **Set up environment**
+1. **Environment Setup**
    ```bash
    cd docker/
    cp .env.example .env
-   # Edit .env with your network settings
+   # Edit .env with your network settings (DESKTOP_IP, TARGET_NODE_MAC, etc.)
    ```
 
-2. **Generate certificates**
+2. **Generate TLS Certificates**
    ```bash
    ./generate-certs.sh
    ```
 
-3. **Start services (with dnsmasq for most home routers)**
+3. **Start Services**
    ```bash
-   # For routers that need proxy DHCP (most home routers like ASUS ZenWiFi)
+   # For most home routers (ASUS, Netgear, Linksys, etc.)
    docker compose --profile dnsmasq up -d
    
-   # For advanced routers with built-in PXE support (enterprise/OpenWrt)
-   # docker compose up -d  # Only Matchbox
+   # For enterprise routers with built-in PXE support (optional)
+   # docker compose up -d  # Matchbox only
    ```
 
-4. **Verify services**
+4. **Verify Everything is Running**
    ```bash
    docker compose ps
    curl http://localhost:8080  # Should return "matchbox"
    ```
 
-## Configuration
+## Network Requirements and Router Compatibility
 
-- Edit `.env` file for network settings
-- Certificates are auto-generated in `../certs/` directory
-- Matchbox data persists in `./data/` directory
+**Most Home Routers (Recommended Setup)**
+Use the dnsmasq container for ASUS, Netgear, Linksys, and similar consumer routers. No router configuration changes are needed - dnsmasq operates in proxy DHCP mode, enhancing your existing DHCP server with PXE boot capabilities.
 
-## Network Requirements
+Requirements:
+- Desktop PC with Docker running these services
+- Existing router DHCP enabled (leave current settings unchanged)
+- Network connectivity between desktop PC and target node
+- Firewall allowing ports 69/udp, 8080, and 8081
 
-### For Most Home Routers (dnsmasq Method)
-Your setup needs:
-1. **Desktop PC** with Docker and these services running
-2. **Router DHCP** enabled (leave existing DHCP configuration alone)
-3. **Network access** between desktop PC and target node
-4. **Firewall rules** allowing traffic to ports 69/udp, 8080, 8081
+**Enterprise/Advanced Routers (Alternative Setup)**
+For routers with custom DHCP options (OpenWrt, pfSense, enterprise gear), you can run only Matchbox and configure DHCP options directly:
+- DHCP Option 66: `192.168.50.100` (desktop PC IP)
+- DHCP Option 67: `undionly.kpxe` (boot filename)
+- Requires separate TFTP server setup
 
-**No router configuration changes needed** - dnsmasq handles PXE boot automatically using proxy DHCP.
+## Service Details
 
-### For Advanced Routers (Direct Configuration)
-If your router supports custom DHCP options, you can run only Matchbox and configure:
-1. **DHCP Option 66**: `192.168.50.100` (your desktop PC IP)
-2. **DHCP Option 67**: `undionly.kpxe` (boot filename)
-3. **TFTP Server**: Point to your desktop PC (you'll need a separate TFTP server)
+**Matchbox**
+- HTTP API (port 8080): Read-only endpoint serving Ignition configs, boot files, and static assets to target nodes
+- gRPC API (port 8081): Management endpoint used by OpenTofu/Terraform for creating profiles and groups
+- Data Persistence: Configuration and assets stored in `../data/matchbox/` via bind mount
+- TLS Security: Uses generated certificates from `../certs/` for secure communications
 
-## Services
+**dnsmasq** (when using `--profile dnsmasq`)
+- Host Networking: Direct network access required for DHCP proxy functionality
+- Proxy DHCP: Enhances router DHCP responses with PXE boot options without IP conflicts
+- Built-in TFTP: Serves iPXE boot files (`undionly.kpxe`, `ipxe.efi`) on port 69/udp
+- Boot Chain: Initial PXE → iPXE bootloader → Matchbox for Ignition configs
 
-### Matchbox
-- **HTTP**: `http://desktop-ip:8080` (read-only)
-- **gRPC**: `desktop-ip:8081` (API access)
-- **Data**: Persisted in `./data/matchbox/`
+## Maintenance and Troubleshooting
 
-### dnsmasq (when enabled)
-- **Mode**: Host networking (direct network access)
-- **DHCP**: Proxy DHCP mode (works alongside your router)
-- **TFTP**: Built-in TFTP server on port 69/udp
-- **iPXE Files**: `undionly.kpxe`, `ipxe.efi`, `grub.efi` included
-- **Profile**: Only starts with `--profile dnsmasq` flag
-
-## Maintenance
-
+**Common Operations**
 ```bash
-# View logs
+# Monitor service logs
 docker compose logs -f matchbox
 docker compose logs -f dnsmasq
 
 # Restart services
 docker compose restart
 
-# Update containers
-docker compose pull
-docker compose up -d
+# Update to latest images
+docker compose pull && docker compose up -d
 
-# Backup data
-tar -czf backup-$(date +%Y%m%d).tar.gz data/ certs/
+# Backup configuration and certificates
+tar -czf homelab-backup-$(date +%Y%m%d).tar.gz ../data/ ../certs/
 ```
+
+**Configuration Files**
+- Environment variables: Edit `.env` for network settings and target node information
+- TLS certificates: Auto-generated in `../certs/` - regenerate with `./generate-certs.sh` if needed
+- Matchbox data: Profiles, groups, and assets persist in `../data/matchbox/`
 
 ---
 
@@ -228,21 +207,21 @@ The dnsmasq service is configured with the following command line flags:
 | `--log-dhcp` | DHCP Logging | Log all DHCP transactions for debugging |
 
 **PXE Service Details:**
-- **First service**: Initial PXE boot loads iPXE bootloader (`undionly.kpxe` or `ipxe.efi`)
-- **Second service**: iPXE clients get directed to Matchbox for boot configuration
+- First service: Initial PXE boot loads iPXE bootloader (`undionly.kpxe` or `ipxe.efi`)
+- Second service: iPXE clients get directed to Matchbox for boot configuration
 
 ### Common dnsmasq Options
 
 For reference, here are other commonly used dnsmasq options that could be useful:
 
-- **`--dhcp-boot`**: Specify BOOTP options (alternative to `--pxe-service`)
-- **`--dhcp-option`**: Send specific DHCP options to clients
-- **`--interface`**: Specify which network interface(s) to listen on
-- **`--bind-interfaces`**: Bind only to interfaces in use (security)
-- **`--no-hosts`**: Don't load `/etc/hosts` file
-- **`--cache-size`**: Set DNS cache size (default: 150 entries)
-- **`--dhcp-authoritative`**: Assume we are the only DHCP server (use with caution)
-- **`--dhcp-leasefile`**: Specify where to store DHCP leases
+- `--dhcp-boot`: Specify BOOTP options (alternative to `--pxe-service`)
+- `--dhcp-option`: Send specific DHCP options to clients
+- `--interface`: Specify which network interface(s) to listen on
+- `--bind-interfaces`: Bind only to interfaces in use (security)
+- `--no-hosts`: Don't load `/etc/hosts` file
+- `--cache-size`: Set DNS cache size (default: 150 entries)
+- `--dhcp-authoritative`: Assume we are the only DHCP server (use with caution)
+- `--dhcp-leasefile`: Specify where to store DHCP leases
 
 ### Debugging Commands
 
