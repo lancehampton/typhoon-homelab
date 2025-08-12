@@ -7,8 +7,8 @@ services:
       - "8080:8080"  # HTTP (read-only)
       - "8081:8081"  # gRPC API
     volumes:
-      - ../data/matchbox:/var/lib/matchbox:Z
-      - ../certs:/etc/matchbox:ro,Z
+      - ./data/matchbox:/var/lib/matchbox:Z
+      - ./certs:/etc/matchbox:ro,Z
     command: >
       -address=0.0.0.0:8080
       -rpc-address=0.0.0.0:8081
@@ -28,30 +28,29 @@ services:
       - homelab
 
   # Official dnsmasq - provides proxy DHCP + TFTP for PXE boot
+
   dnsmasq:
     image: quay.io/poseidon/dnsmasq:v0.5.0-43-g545c220
     container_name: dnsmasq
     restart: unless-stopped
     network_mode: host
+    cap_add:
+      - NET_ADMIN
     command: >
       -d -q
       --port=0
-      --dhcp-range=${DHCP_RANGE:-192.168.50.1,proxy,255.255.255.0}
+      --dhcp-range=192.168.50.1,proxy,255.255.255.0
       --enable-tftp
       --tftp-root=/var/lib/tftpboot
       --dhcp-userclass=set:ipxe,iPXE
       --pxe-service=tag:#ipxe,x86PC,"PXE chainload to iPXE",undionly.kpxe
-      --pxe-service=tag:ipxe,x86PC,"iPXE",http://${DESKTOP_IP:-192.168.50.100}:8080/boot.ipxe
+      --pxe-service=tag:ipxe,x86PC,"iPXE",http://192.168.50.100:8080/boot.ipxe
       --pxe-service=tag:#ipxe,X86-64_EFI,"PXE chainload to iPXE UEFI",ipxe.efi
-      --pxe-service=tag:ipxe,X86-64_EFI,"iPXE UEFI",http://${DESKTOP_IP:-192.168.50.100}:8080/boot.ipxe
-      --address=/matchbox.home/${DESKTOP_IP:-192.168.50.100}
+      --pxe-service=tag:ipxe,X86-64_EFI,"iPXE UEFI",http://192.168.50.100:8080/boot.ipxe
       --log-queries
       --log-dhcp
     profiles:
-      - dnsmasq  # Only start if explicitly requested
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
+      - dnsmasq
 
 networks:
   homelab:

@@ -25,6 +25,9 @@ docker/.env
 docker/tftp/
 docker/dhcp/
 
+# Exclude Matchbox assets (generated or user-uploaded)
+matchbox/data/matchbox/
+
 # IDE/Editor
 .vscode/settings.json
 .vscode/launch.json

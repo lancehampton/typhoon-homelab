@@ -159,84 +159,89 @@ networking = "flannel"
 - kubectl for cluster management
 - SSH keys for machine access
 
+
 ## Quick Start
 
-1. **Deploy Matchbox and dnsmasq Services on Desktop PC**
+1. **Start Matchbox and dnsmasq (Desktop PC):**
    ```bash
-   cd docker/
+   cd matchbox/
    cp .env.example .env
    # Edit .env with your network settings
    ./generate-certs.sh
    docker compose --profile dnsmasq up -d
    ```
 
-2. **Configure Infrastructure on Dev Machine**
+2. **Prepare Infrastructure (Dev Machine):**
    ```bash
    cd infrastructure/
    cp terraform.tfvars.example terraform.tfvars
    # Edit with your environment details
    ```
 
-3. **Deploy Single-Node Cluster (Two-Step Process)**
-   
-   **Step 1: Pre-Node Setup** (safe without target node powered on)
+3. **Bootstrap Cluster (No target node needed yet):**
    ```bash
-   cd infrastructure
    tofu init
    tofu plan
-   
-   # Apply bootstrap components and Matchbox configurations
    tofu apply -target="module.homelab.module.bootstrap"
-   tofu apply -target="module.homelab.matchbox_profile.controllers"  
+   tofu apply -target="module.homelab.matchbox_profile.controllers"
    tofu apply -target="module.homelab.matchbox_group.controller"
    ```
-   
-   This creates:
-   - All TLS certificates and Kubernetes PKI
-   - Bootstrap tokens and cluster credentials
-   - Matchbox profiles with Ignition configs
-   - Matchbox groups (MAC address mappings)
-   - PXE boot configurations
-   
-   **Step 2: Complete Deployment** (after target node is PXE booted and running)
+   - This creates TLS certs, cluster credentials, Matchbox profiles/groups, and PXE configs.
+
+4. **PXE Boot Target Node:**
+   - Set the node to PXE/network boot and power on (manual or IPMI):
+     ```bash
+     ipmitool -H node1.home -U USER -P PASS chassis bootdev pxe
+     ipmitool -H node1.home -U USER -P PASS power on
+     ```
+   - At the iPXE prompt, press `Ctrl+B` for the shell, then run:
+     ```
+     dhcp
+     chain http://<matchbox-ip>:8080/boot.ipxe
+     ```
+   - Fedora CoreOS will install and configure automatically.
+
+5. **Finalize Cluster (after node is SSH accessible):**
    ```bash
-   # After the node has successfully booted Fedora CoreOS and is SSH accessible
    tofu apply
    ```
-   
-   This creates the remaining resources:
-   - `local_file.kubeconfig` - Your local kubeconfig file
-   - `null_resource.bootstrap` - Cluster bootstrap process
-   - `null_resource.copy-controller-secrets` - Copies secrets to node via SSH
+   - This creates your kubeconfig and completes cluster bootstrap.
 
-4. **Power On Target Node with PXE Boot**
-   ```bash
-   # Set boot device to PXE and power on (manual or IPMI)
-   ipmitool -H node1.home -U USER -P PASS chassis bootdev pxe
-   ipmitool -H node1.home -U USER -P PASS power on
-   ```
-
-5. **Wait for Bootstrap and Verify Cluster**
+6. **Verify Cluster:**
    ```bash
    export KUBECONFIG=~/.kube/config-homelab
    kubectl get nodes
    kubectl get pods -A
-   # Take time to manually inspect and understand your single-node cluster
    ```
+
+### PXE Boot Troubleshooting: iPXE DHCP and Chainloading Quirk
+
+> [!IMPORTANT]
+> **iPXE DHCP and Chainloading Quirk**
+>
+> On some hardware, after PXE chainloads to iPXE (using the Typhoon default dnsmasq config), iPXE does not automatically acquire a DHCP lease. This results in "Network unreachable" errors when iPXE tries to fetch the next boot script.
+>
+> **Workaround:**  At the iPXE prompt, type:
+> ```
+> dhcp
+> chain http://<matchbox-ip>:8080/boot.ipxe
+> ```
+> This will acquire a lease and continue the boot process. This is a known quirk with some PXE/iPXE/BIOS combinations and is not a limitation of Typhoon or dnsmasq.
+
+
 
 ## Directory Structure
 
 ```
 ├── README.md                    # This file
 ├── .gitignore                   # Git ignore patterns
-├── certs/                       # TLS certificates (generated)
-├── data/                        # Persistent data for services (generated)
-│   ├── matchbox/                # Matchbox profiles, groups, machines
-│   └── tftpboot/                # TFTP boot files (only if using separate TFTP server)
-├── docker/                      # Docker Compose for Matchbox/dnsmasq
+├── matchbox/                    # All PXE/Matchbox/docker-compose/certs/data
+│   ├── certs/                   # TLS certificates (generated)
+│   ├── data/
+│   │   └── matchbox/            # Matchbox profiles, groups, assets, ignition
 │   ├── docker-compose.yml       # Service definitions
 │   ├── generate-certs.sh        # Certificate generation
-│   ├── README.md                # Docker services documentation
+│   ├── README.md                # Matchbox/dnsmasq services documentation
 │   └── .env.example             # Environment configuration
 └── infrastructure/              # Terraform/OpenTofu configs
     ├── main.tf                  # Main cluster configuration
@@ -245,6 +250,22 @@ networking = "flannel"
     ├── outputs.tf               # Output values
     └── terraform.tfvars.example # Example configuration
 ```
+
+
+## PXE Boot Troubleshooting: iPXE DHCP and Chainloading Quirk
+
+> [!IMPORTANT]
+> **iPXE DHCP and Chainloading Quirk**
+>
+> On some hardware, after PXE chainloads to iPXE (using the Typhoon default dnsmasq config), iPXE does not automatically acquire a DHCP lease. This results in "Network unreachable" errors when iPXE tries to fetch the next boot script.
+>
+> **Workaround:**  
+> At the iPXE prompt, type:
+> ```
+> dhcp
+> chain http://<matchbox-ip>:8080/boot.ipxe
+> ```
+> This will acquire a lease and continue the boot process. This is a known quirk with some PXE/iPXE/BIOS combinations and is not a limitation of Typhoon or dnsmasq.
 
 ## License
 

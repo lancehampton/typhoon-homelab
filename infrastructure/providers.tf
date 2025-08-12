@@ -21,7 +21,7 @@ terraform {
 }
 
 provider "matchbox" {
-  endpoint    = var.matchbox_http_endpoint
+  endpoint    = var.matchbox_grpc_endpoint
   client_cert = file(var.matchbox_client_cert)
   client_key  = file(var.matchbox_client_key)
   ca          = file(var.matchbox_ca_cert)

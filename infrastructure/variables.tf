@@ -6,7 +6,12 @@ variable "cluster_name" {
 }
 
 variable "matchbox_http_endpoint" {
-  description = "Matchbox gRPC API endpoint (e.g. matchbox.example.com:8081)"
+  description = "Matchbox HTTP API endpoint for asset serving (e.g. http://matchbox.example.com:8080)"
+  type        = string
+}
+
+variable "matchbox_grpc_endpoint" {
+  description = "Matchbox gRPC API endpoint for provider management (e.g. http://matchbox.example.com:8081)"
   type        = string
 }
 
