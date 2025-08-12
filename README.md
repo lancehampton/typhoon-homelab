@@ -2,6 +2,7 @@
 
 A single-node Kubernetes homelab built with [Typhoon](https://typhoon.psdn.io/) using Fedora CoreOS, Matchbox for PXE provisioning, and infrastructure as code.
 
+
 ## Overview
 
 This project implements a single-node bare-metal Kubernetes cluster using:
@@ -12,6 +13,72 @@ This project implements a single-node bare-metal Kubernetes cluster using:
 - [OpenTofu](https://opentofu.org/)/[Terraform](https://developer.hashicorp.com/terraform) - Infrastructure as code
 - [Ignition](https://coreos.github.io/ignition/) - Declarative system configuration
 - [Cilium](https://cilium.io/) or [Flannel](https://github.com/flannel-io/flannel) - Container networking (we use Cilium for reasons stated in [Networking Choice: Cilium vs Flannel](#networking-choice-cilium-vs-flannel))
+
+## Quick Start
+
+1. **Start Matchbox and dnsmasq (Desktop PC):**
+   ```bash
+   cd matchbox/
+   cp .env.example .env
+   # Edit .env with your network settings
+   ./generate-certs.sh
+   docker compose --profile dnsmasq up -d
+   ```
+
+2. **Prepare Infrastructure (Dev Machine):**
+   ```bash
+   cd infrastructure/
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit with your environment details
+   ```
+
+3. **Bootstrap Cluster (No target node needed yet):**
+   ```bash
+   tofu init
+   tofu plan
+   tofu apply -target="module.homelab.module.bootstrap"
+   tofu apply -target="module.homelab.matchbox_profile.controllers"
+   tofu apply -target="module.homelab.matchbox_group.controller"
+   ```
+   - This creates TLS certs, cluster credentials, Matchbox profiles/groups, and PXE configs.
+
+4. **PXE Boot Target Node:**
+   - Set the node to PXE/network boot and power on (manual or IPMI):
+     ```bash
+     ipmitool -H node1.home -U USER -P PASS chassis bootdev pxe
+     ipmitool -H node1.home -U USER -P PASS power on
+     ```
+   - At the iPXE prompt, press `Ctrl+B` for the shell, then run:
+     ```
+     dhcp
+     chain http://<matchbox-ip>:8080/boot.ipxe
+     ```
+   - Fedora CoreOS will install and configure automatically.
+
+5. **Finalize Cluster (after node is SSH accessible):**
+   ```bash
+   tofu apply
+   ```
+   - This creates your kubeconfig and completes cluster bootstrap.
+
+6. **Verify Cluster:**
+   ```bash
+   export KUBECONFIG=~/.kube/config-homelab
+   kubectl get nodes
+   kubectl get pods -A
+   ```
+
+> [!IMPORTANT]
+> **iPXE DHCP and Chainloading Quirk**
+>
+> On some hardware, after PXE chainloads to iPXE (using the Typhoon default dnsmasq config), iPXE does not automatically acquire a DHCP lease. This results in "Network unreachable" errors when iPXE tries to fetch the next boot script.
+>
+> **Workaround:**  At the iPXE prompt, type:
+> ```
+> dhcp
+> chain http://<matchbox-ip>:8080/boot.ipxe
+> ```
+> This will acquire a lease and continue the boot process. This is a known quirk with some PXE/iPXE/BIOS combinations and is not a limitation of Typhoon or dnsmasq.
 
 ## Architecture
 
@@ -69,19 +136,19 @@ flowchart TD
     A["`**Stage 1: Bootstrap**
     OpenTofu generates TLS certs
     Creates Matchbox profiles`"] -->
-    
+
     B["`**Stage 2: PXE Boot**
     Target node boots via PXE
     dnsmasq → iPXE → Matchbox`"] -->
-    
+
     C["`**Stage 3: OS Install**
     Fedora CoreOS installs to NVMe
     Ignition applies configuration`"] -->
-    
+
     D["`**Stage 4: Kubernetes Init**
     kubelet starts control plane
     Node becomes schedulable`"] -->
-    
+
     E["`**Stage 5: Access**
     SSH: core at node1.home
     kubectl: config-homelab`"]
@@ -159,113 +226,26 @@ networking = "flannel"
 - kubectl for cluster management
 - SSH keys for machine access
 
-
-## Quick Start
-
-1. **Start Matchbox and dnsmasq (Desktop PC):**
-   ```bash
-   cd matchbox/
-   cp .env.example .env
-   # Edit .env with your network settings
-   ./generate-certs.sh
-   docker compose --profile dnsmasq up -d
-   ```
-
-2. **Prepare Infrastructure (Dev Machine):**
-   ```bash
-   cd infrastructure/
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit with your environment details
-   ```
-
-3. **Bootstrap Cluster (No target node needed yet):**
-   ```bash
-   tofu init
-   tofu plan
-   tofu apply -target="module.homelab.module.bootstrap"
-   tofu apply -target="module.homelab.matchbox_profile.controllers"
-   tofu apply -target="module.homelab.matchbox_group.controller"
-   ```
-   - This creates TLS certs, cluster credentials, Matchbox profiles/groups, and PXE configs.
-
-4. **PXE Boot Target Node:**
-   - Set the node to PXE/network boot and power on (manual or IPMI):
-     ```bash
-     ipmitool -H node1.home -U USER -P PASS chassis bootdev pxe
-     ipmitool -H node1.home -U USER -P PASS power on
-     ```
-   - At the iPXE prompt, press `Ctrl+B` for the shell, then run:
-     ```
-     dhcp
-     chain http://<matchbox-ip>:8080/boot.ipxe
-     ```
-   - Fedora CoreOS will install and configure automatically.
-
-5. **Finalize Cluster (after node is SSH accessible):**
-   ```bash
-   tofu apply
-   ```
-   - This creates your kubeconfig and completes cluster bootstrap.
-
-6. **Verify Cluster:**
-   ```bash
-   export KUBECONFIG=~/.kube/config-homelab
-   kubectl get nodes
-   kubectl get pods -A
-   ```
-
-### PXE Boot Troubleshooting: iPXE DHCP and Chainloading Quirk
-
-> [!IMPORTANT]
-> **iPXE DHCP and Chainloading Quirk**
->
-> On some hardware, after PXE chainloads to iPXE (using the Typhoon default dnsmasq config), iPXE does not automatically acquire a DHCP lease. This results in "Network unreachable" errors when iPXE tries to fetch the next boot script.
->
-> **Workaround:**  At the iPXE prompt, type:
-> ```
-> dhcp
-> chain http://<matchbox-ip>:8080/boot.ipxe
-> ```
-> This will acquire a lease and continue the boot process. This is a known quirk with some PXE/iPXE/BIOS combinations and is not a limitation of Typhoon or dnsmasq.
-
-
-
 ## Directory Structure
 
 ```
-├── README.md                    # This file
-├── .gitignore                   # Git ignore patterns
-├── matchbox/                    # All PXE/Matchbox/docker-compose/certs/data
-│   ├── certs/                   # TLS certificates (generated)
-│   ├── data/
-│   │   └── matchbox/            # Matchbox profiles, groups, assets, ignition
-│   ├── docker-compose.yml       # Service definitions
-│   ├── generate-certs.sh        # Certificate generation
-│   ├── README.md                # Matchbox/dnsmasq services documentation
-│   └── .env.example             # Environment configuration
-└── infrastructure/              # Terraform/OpenTofu configs
-    ├── main.tf                  # Main cluster configuration
-    ├── providers.tf             # Terraform providers and versions
-    ├── variables.tf             # Variable definitions
-    ├── outputs.tf               # Output values
-    └── terraform.tfvars.example # Example configuration
+├── matchbox/
+│   ├── certs/          # TLS certificates for Matchbox (generated)
+│   ├── data/           # Matchbox assets, groups, ignition, profiles
+│   ├── tftpboot/       # TFTP boot files (if used)
+│   ├── docker-compose.yml  # Service definitions
+│   ├── generate-certs.sh   # Certificate generation script
+│   └── .env.example        # Environment configuration example
+├── infrastructure/     # Terraform/OpenTofu configs for cluster
+│   ├── main.tf         # Main cluster configuration
+│   ├── providers.tf    # Provider versions
+│   ├── variables.tf    # Variable definitions
+│   ├── outputs.tf      # Output values
+│   └── terraform.tfvars.example # Example config
+├── README.md           # This file
+├── LICENSE             # MIT License
+├── .gitignore          # Git ignore patterns
 ```
-
-
-## PXE Boot Troubleshooting: iPXE DHCP and Chainloading Quirk
-
-> [!IMPORTANT]
-> **iPXE DHCP and Chainloading Quirk**
->
-> On some hardware, after PXE chainloads to iPXE (using the Typhoon default dnsmasq config), iPXE does not automatically acquire a DHCP lease. This results in "Network unreachable" errors when iPXE tries to fetch the next boot script.
->
-> **Workaround:**  
-> At the iPXE prompt, type:
-> ```
-> dhcp
-> chain http://<matchbox-ip>:8080/boot.ipxe
-> ```
-> This will acquire a lease and continue the boot process. This is a known quirk with some PXE/iPXE/BIOS combinations and is not a limitation of Typhoon or dnsmasq.
 
 ## License
 
